@@ -1,0 +1,14 @@
+{% extends 'blog/blog_list.html' %}
+
+{# 页面标题 #}
+{% block title %}
+    {{ blog_type.type_name }}
+{% endblock %}
+
+{% block nav_blog_active %}deactive{% endblock %}
+
+{% block blog_list_title %}
+    日期分类： {{ blog_type.type_name }}
+    <!-- <a href="{# url 'blog_list' #}">查看全部文章</a> -->
+    <a href="{% url 'home' %}">查看全部文章</a>
+{% endblock %}

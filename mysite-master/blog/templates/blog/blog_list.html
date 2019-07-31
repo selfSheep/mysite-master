@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{# 页面标题 #}
+{% block title %}晓纸然的后花园{% endblock %}
+{% block nav_blog_active %}active{% endblock %}
+
+{% load staticfiles %}
+{% load comment_tags %}
+{% load likes_tags %}
+{% block header_extends %}
+    <link rel="stylesheet" type="text/css" href="{% static 'blog/blog.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/home.css' %}">
+    <script type="text/javascript" src="{% static 'js/highcharts.js' %}"></script>
+{% endblock %}
+
+{# 页面内容 #}
+{% block content %}
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-8">
+                <div class="panel panel-default">
+                    <div class="panel-heading">{% block blog_list_title %}文章列表{% endblock %}</div>
+                    <div class="panel-body">
+                        {% for blog in page_of_blogs.object_list %}
+                            <div class="blog">
+                                <h3><a href="{% url 'blog_detail' blog.pk %}">{{ blog.title }}</a></h3>
+                                <p class="blog-info">
+                                    <span class="glyphicon glyphicon-tag"></span>&nbsp;&nbsp;&nbsp;<a href="{% url 'blogs_with_type' blog.blog_type.pk %}">{{ blog.blog_type }}</a>&nbsp;&nbsp;&nbsp;<span class="glyphicon glyphicon-time"></span> {{ blog.created_time|date:"Y-m-d" }}&nbsp;&nbsp;
+                                    阅读({{ blog.get_read_num }})&nbsp;&nbsp;
+                                    评论({% get_comment_count blog %})&nbsp;&nbsp;
+                                    点赞({% get_like_count blog %})
+                                </p>
+                                <!-- striptags该过滤器可以过滤掉所有html标签 -->
+                                <p>{{ blog.content|striptags|truncatechars:120 }}</p>
+                            </div>
+                        {% empty %}
+                            <div class="blog">
+                                <h3>暂无文章，敬请期待</h3>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="paginator">
+                    <ul class="pagination">
+                        {# 上一页 #}
+                        <li>
+                            {% if page_of_blogs.has_previous %}
+                                <a href="?page={{ page_of_blogs.previous_page_number }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            {% else %}
+                                <span aria-hidden="true">&laquo;</span>
+                            {% endif %}
+                        </li>
+                        {# 全部页码 #}
+                        {% for page_num in page_range %}
+                            {% if page_num == page_of_blogs.number %}
+                                <li class="active"><span>{{ page_num }}</span></li>
+                            {% else %}
+                                {% if page_num == '...' %}
+                                    <li><span>{{ page_num }}</span></li>
+                                {% else %}
+                                    <li><a href="?page={{ page_num }}">{{ page_num }}</a></li>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        {# 下一页 #}
+                        <li>
+                            {% if page_of_blogs.has_next %}
+                                <a href="?page={{ page_of_blogs.next_page_number }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            {% else %}
+                                <span aria-hidden="true">&raquo;</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+                    <p>
+                        共有{{ page_of_blogs.paginator.count }}篇文章,
+                        当前第{{ page_of_blogs.number }}页,
+                        共{{ page_of_blogs.paginator.num_pages }}页
+                    </p>
+                </div>
+            </div>
+            <div class="hidden-xs col-sm-4 col-md-4 col-lg-4">
+                <!-- 图表的容器 -->
+                <div id="container"></div>
+                <div class="hot-data">
+                    <!-- 今天24小时内的热门文章 -->
+                    <h3>今天热门文章</h3>
+                    <ul>
+                        {% for hot_data in today_hot_data %}
+                            <li><a href="{% url 'blog_detail' hot_data.content_object.pk %}">{{ hot_data.content_object.title }}</a>({{ hot_data.read_num }})</li>
+                        {% empty %}
+                            <li>今天暂时没有热门文章</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="hot-data">
+                    <!-- 昨天的热门文章 -->
+                    <h3>昨天热门点击</h3>
+                    <ul>
+                        {% for hot_data in yesterday_hot_data %}
+                            <li><a href="{% url 'blog_detail' hot_data.content_object.pk %}">{{ hot_data.content_object.title }}</a>({{ hot_data.read_num }})</li>
+                        {% empty %}
+                            <li>昨天没有热门文章</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="hot-data">
+                    <!-- 7天热门文章 -->
+                    <h3>7天热门点击</h3>
+                    <ul>
+                        {% for hot_blog in hot_blogs_for_7_days %}
+                            <li><a href="{% url 'blog_detail' hot_blog.id %}">{{ hot_blog.title }}</a>({{ hot_blog.read_num_sum }})</li>
+                        {% empty %}
+                            <li>7天内没有热门文章</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">文章分类</div>
+                    <div class="panel-body">
+                        <ul class="blog-types">
+                            {# blog_set 是反向获取被关联外键的model。 模型名称小写加 _set #}
+                            {% for blog_type in blog_types %}
+                                <li><a href="{% url 'blogs_with_type' blog_type.pk %}">{{ blog_type.type_name }}({{ blog_type.blog_set.count }})</a></li>
+                            {% empty %}
+                                <li>暂无分类</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">日期分类</div>
+                    <div class="panel-body">
+                        <ul>
+                            {% for blog_date, blog_count in blog_dates.items %}
+                                <li>
+                                    <a href="{% url 'blogs_with_date' blog_date.year blog_date.month %}">
+                                        {{ blog_date|date:"Y年m月" }}({{ blog_count }})
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block script_extends %}
+    <script>
+        // 图表配置
+        var options = {
+            chart: { type: 'line' },  // 指定图表的类型，默认是折线图（line）
+            title: { text: '前7日阅读量变化' },  // 标题
+            xAxis: {
+                categories: {{ dates|safe }},  // x 轴分类
+                tickmarkPlacement: 'on',  // 以点来标出坐标
+                title: { text: '前7日阅读量变化' },
+            },
+            yAxis: {
+                title: { text: null },
+                labels:{ enabled: false },
+                gridLineDashStyle: 'Dash',  // 虚线
+            },
+            series: [{     // 数据列
+                name: '阅读量',  // 数据列名
+                data:  {{ read_nums }}  // 数据
+            }],
+            // 在线上显示数量
+            plotOptions: {
+                line: {
+                    dataLabels: {
+                        enabled: true
+                    }
+                }
+            },
+            legend: { enabled: false },
+            credits: { enabled: false },  // 去掉版权信息
+        };
+        // 图表初始化函数
+        var chart = Highcharts.chart('container', options);
+    </script>
+{% endblock %}
